@@ -37,8 +37,33 @@ function MyBookings() {
   };
 
   useEffect(() => {
-    loadBookings();
-  }, []);
+    const fetchBookings = async () => {
+      const user = JSON.parse(localStorage.getItem("user"));
+
+      if (!user || !user.id) {
+        navigate("/login");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${BASE_URL}/my-bookings/${user.id}`);
+        const data = await res.json();
+
+        if (res.ok) {
+          setBookings(data.bookings || []);
+        } else {
+          setBookings([]);
+        }
+      } catch (error) {
+        console.log("Error loading bookings:", error);
+        setBookings([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBookings();
+  }, [navigate]);
 
   const cancelBooking = async (bookingId) => {
     try {

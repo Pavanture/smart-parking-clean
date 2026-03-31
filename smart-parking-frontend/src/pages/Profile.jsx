@@ -1,43 +1,22 @@
-import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 function Profile() {
-  const [user, setUser] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    city: "",
-    photo: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
-  });
+  const storedUser = JSON.parse(localStorage.getItem("user")) || {};
 
+  const initialUser = {
+    name: storedUser.name || "",
+    email: storedUser.email || "",
+    phone: storedUser.phone || "",
+    city: storedUser.city || "",
+    photo:
+      storedUser.photo ||
+      "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+  };
+
+  const [user, setUser] = useState(initialUser);
+  const [formData, setFormData] = useState(initialUser);
   const [editMode, setEditMode] = useState(false);
   const [photoLoading, setPhotoLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    city: "",
-    photo: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
-  });
-
-  useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem("user"));
-
-    if (storedUser) {
-      const profileData = {
-        name: storedUser.name || "",
-        email: storedUser.email || "",
-        phone: storedUser.phone || "",
-        city: storedUser.city || "",
-        photo:
-          storedUser.photo ||
-          "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
-      };
-
-      setUser(profileData);
-      setFormData(profileData);
-    }
-  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -65,17 +44,14 @@ function Profile() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 via-white to-indigo-200 flex items-center justify-center">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-white shadow-2xl rounded-2xl p-10 w-96"
-      >
+      <div className="bg-white shadow-2xl rounded-2xl p-10 w-96">
         <div className="text-center mb-6">
           <img
             src={formData.photo || user.photo}
             alt="User"
             className="w-24 h-24 mx-auto mb-4 rounded-full object-cover"
           />
+
           {editMode ? (
             <>
               <input
@@ -164,7 +140,7 @@ function Profile() {
             </button>
           )}
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

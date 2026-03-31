@@ -32,27 +32,25 @@ function Booking() {
   }, [parkingType]);
 
   useEffect(() => {
-    fetchAvailableSlots();
-  }, [spotName, parkingType]);
+    const fetchSlots = async () => {
+      try {
+        const vehicleType = parkingType === "electric" ? "Electric" : "Normal";
 
-  const fetchAvailableSlots = async () => {
-    try {
-      const vehicleType = parkingType === "electric" ? "Electric" : "Normal";
+        const res = await fetch(
+          `${BASE_URL}/available-slots/${spotName}/${vehicleType}`,
+        );
+        const data = await res.json();
 
-      const res = await fetch(
-        `${BASE_URL}/available-slots/${spotName}/${vehicleType}`,
-      );
-      const data = await res.json();
-
-      if (res.ok) {
-        setBookedSlots(data.bookedSlots || []);
-      } else {
-        console.log(data.message || "Failed to fetch slots");
+        if (res.ok) {
+          setBookedSlots(data.bookedSlots || []);
+        }
+      } catch (error) {
+        console.log("Error fetching slots:", error);
       }
-    } catch (error) {
-      console.log("Error fetching slots:", error);
-    }
-  };
+    };
+
+    fetchSlots();
+  }, [spotName, parkingType]);
 
   useEffect(() => {
     setSelectedSlots((prev) =>

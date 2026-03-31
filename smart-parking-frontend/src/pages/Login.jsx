@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { motion } from "framer-motion";
+// import { motion } from "framer-motion";
 import { BASE_URL } from "../config";
 
 function Login() {
