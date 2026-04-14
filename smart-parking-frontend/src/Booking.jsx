@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BASE_URL } from "../config";
 
 function Booking() {
   const [form, setForm] = useState({
@@ -18,14 +19,19 @@ function Booking() {
   };
 
   const bookSlot = async () => {
-    const res = await fetch("http://localhost:5000/book", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+    try {
+      const res = await fetch(`${BASE_URL}/book`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
 
-    const data = await res.json();
-    alert(data.message);
+      const data = await res.json();
+      alert(data.message);
+    } catch (error) {
+      alert("Booking failed");
+      console.error(error);
+    }
   };
 
   return (
@@ -51,7 +57,7 @@ function Booking() {
         onChange={handleChange}
       />
       <br />
-      <input name="phone" placeholder="Phone" onChange={handleChange} />
+      <input name="phone" placeholder="Phone Number" onChange={handleChange} />
       <br />
       <input name="hours" placeholder="Hours" onChange={handleChange} />
       <br />

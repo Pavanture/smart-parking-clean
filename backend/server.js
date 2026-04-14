@@ -11,7 +11,7 @@ app.use(
   cors({
     origin: allowedOrigin,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  })
+  }),
 );
 
 app.use(express.json());
@@ -21,16 +21,6 @@ app.get("/", (req, res) => {
 });
 
 console.log("MYSQL PROJECT STARTED");
-
-/* ---------------- DATABASE CONNECTION ---------------- */
-
-db.connect((err) => {
-  if (err) {
-    console.log("Database connection failed:", err);
-  } else {
-    console.log("MySQL Connected Successfully");
-  }
-});
 
 /* ---------------- SIGNUP ---------------- */
 
@@ -118,6 +108,7 @@ app.get("/my-bookings/:userId", (req, res) => {
     SELECT *,
     CASE 
       WHEN booking_status = 'Cancelled' THEN 'Cancelled'
+      WHEN booking_status = 'Expired' THEN 'Expired'
       WHEN expiry_time > NOW() THEN 'Active'
       ELSE 'Expired'
     END AS status
@@ -169,10 +160,7 @@ app.get("/available-slots/:location/:vehicleType", (req, res) => {
     }
 
     const bookedSlots = results.map((r) => r.slot);
-
-    const availableSlots = allSlots.filter(
-      (slot) => !bookedSlots.includes(slot)
-    );
+    const availableSlots = allSlots.filter((slot) => !bookedSlots.includes(slot));
 
     res.json({
       location,
@@ -185,6 +173,7 @@ app.get("/available-slots/:location/:vehicleType", (req, res) => {
 });
 
 /* ---------------- BOOK SLOT ---------------- */
+
 app.post("/book", (req, res) => {
   console.log("BOOK REQ BODY:", req.body);
 
@@ -241,7 +230,7 @@ app.post("/book", (req, res) => {
     }
 
     const expiryDateObj = new Date(
-      startDateObj.getTime() + Number(hours) * 60 * 60 * 1000
+      startDateObj.getTime() + Number(hours) * 60 * 60 * 1000,
     );
 
     const formattedStartTime = startDateObj
@@ -306,32 +295,59 @@ app.post("/book", (req, res) => {
           start_time: formattedStartTime,
           expiry_time: formattedExpiryTime,
         });
-      }
+      },
     );
   });
 });
+
 /* ---------------- CANCEL BOOKING ---------------- */
 
 app.delete("/cancel-booking/:id", (req, res) => {
   const bookingId = req.params.id;
 
-  const sql = `
-    UPDATE bookings
-    SET booking_status = 'Cancelled'
+  const checkSql = `
+    SELECT * FROM bookings
     WHERE id = ?
   `;
 
-  db.query(sql, [bookingId], (err, result) => {
+  db.query(checkSql, [bookingId], (err, results) => {
     if (err) {
-      console.log("Cancel booking error:", err);
+      console.log("Cancel check error:", err);
       return res.status(500).json({ message: "Server error" });
     }
 
-    if (result.affectedRows === 0) {
+    if (results.length === 0) {
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    return res.json({ message: "Booking cancelled successfully" });
+    const booking = results[0];
+
+    if (booking.booking_status === "Cancelled") {
+      return res.json({ message: "Booking already cancelled" });
+    }
+
+    if (booking.expiry_time && new Date(booking.expiry_time) <= new Date()) {
+      return res.status(400).json({
+        message: "Cannot cancel expired booking",
+      });
+    }
+
+    const updateSql = `
+      UPDATE bookings
+      SET booking_status = 'Cancelled'
+      WHERE id = ?
+    `;
+
+    db.query(updateSql, [bookingId], (err, result) => {
+      if (err) {
+        console.log("Cancel booking error:", err);
+        return res.status(500).json({ message: "Cancel failed" });
+      }
+
+      return res.json({
+        message: "Booking cancelled successfully",
+      });
+    });
   });
 });
 
@@ -389,7 +405,7 @@ app.get("/overstay-charge/:bookingId", (req, res) => {
   });
 });
 
-/* ---------------- AUTO EXPIRE BOOKINGS ---------------- */
+/* ---------------- EXPIRE BOOKINGS ---------------- */
 
 app.put("/expire-bookings", (req, res) => {
   const sql = `
@@ -411,6 +427,23 @@ app.put("/expire-bookings", (req, res) => {
     });
   });
 });
+
+/* ---------------- AUTO EXPIRE EVERY 1 MIN ---------------- */
+
+setInterval(() => {
+  const sql = `
+    UPDATE bookings
+    SET booking_status = 'Expired'
+    WHERE expiry_time <= NOW()
+    AND booking_status = 'Active'
+  `;
+
+  db.query(sql, (err, result) => {
+    if (err) {
+      console.log("Auto expire error:", err);
+    }
+  });
+}, 60000);
 
 /* ---------------- SERVER START ---------------- */
 
