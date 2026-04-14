@@ -75,9 +75,10 @@ function Home() {
       <div className="hero-section">
         <h1>Smart Parking System</h1>
         <p>
-          Smart Parking app madhe tumhala easy parking booking, secure access,
-          ani fast parking management milte. Search kara, booking kara, ani
-          tumcha parking experience smooth banva.
+          The Smart Parking system allows you to easily book parking slots with
+          secure access and fast management. Search for available locations,
+          book your slot instantly, and enjoy a smooth and hassle-free parking
+          experience.
         </p>
 
         <div className="search-box">
