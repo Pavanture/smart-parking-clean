@@ -6,12 +6,12 @@ function Payment() {
   const navigate = useNavigate();
   const { state } = useLocation();
 
-  const spotName = state?.spotName;
-  const parkingType = state?.parkingType;
-  const selectedSlots = state?.selectedSlots;
-  const hours = state?.hours || 1;
-  const hourlyRate = state?.hourlyRate || 0;
-  const start_time = state?.start_time;
+  const spotName = state?.spotName || "";
+  const parkingType = state?.parkingType || "";
+  const selectedSlots = state?.selectedSlots || [];
+  const hours = Number(state?.hours) || 1;
+  const hourlyRate = Number(state?.hourlyRate) || 0;
+  const start_time = state?.start_time || new Date().toISOString();
 
   const [method, setMethod] = useState("card");
   const [cardNumber, setCardNumber] = useState("");
@@ -29,10 +29,10 @@ function Payment() {
   }, [hourlyRate, hours]);
 
   useEffect(() => {
-    if (!spotName || !parkingType || !selectedSlots?.length) {
+    if (!spotName || !parkingType || selectedSlots.length === 0) {
       navigate("/home");
     }
-  }, [navigate, parkingType, selectedSlots, spotName]);
+  }, [navigate, spotName, parkingType, selectedSlots]);
 
   const validate = () => {
     if (!vehicleNumber.trim() || !phone.trim()) {
@@ -44,7 +44,12 @@ function Payment() {
     }
 
     if (method === "card") {
-      if (!cardNumber || !cardName || !expiry || !cvv) {
+      if (
+        !cardNumber.trim() ||
+        !cardName.trim() ||
+        !expiry.trim() ||
+        !cvv.trim()
+      ) {
         return "Please fill payment details";
       }
     }
@@ -74,25 +79,41 @@ function Payment() {
       return;
     }
 
+    const payload = {
+      user_id: user?.id || "",
+      location: spotName || "",
+      slot: selectedSlots.length > 0 ? selectedSlots[0] : "",
+      vehicle_type: parkingType === "electric" ? "Electric" : "Normal",
+      vehicle_number: vehicleNumber.trim(),
+      phone: phone.trim(),
+      hours: Number(hours) || 0,
+      amount: Number(bookingTotal) || 0,
+      payment_mode: method ? method.toUpperCase() : "",
+      start_time: start_time || new Date().toISOString(),
+    };
+
+    console.log("PAYMENT STATE:", state);
+    console.log("PAYMENT PAYLOAD:", payload);
+
+    if (
+      !payload.user_id ||
+      !payload.location ||
+      !payload.slot ||
+      !payload.vehicle_type ||
+      !payload.hours ||
+      !payload.amount ||
+      !payload.payment_mode
+    ) {
+      setError(
+        "Booking details missing. Please go back and select slot again.",
+      );
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
-      const payload = {
-        user_id: user.id,
-        location: spotName,
-        slot: selectedSlots[0],
-        vehicle_type: parkingType === "electric" ? "Electric" : "Normal",
-        vehicle_number: vehicleNumber,
-        phone: phone,
-        hours: hours,
-        amount: bookingTotal,
-        payment_mode: method.toUpperCase(),
-        start_time: start_time,
-      };
-
-      console.log("PAYMENT PAYLOAD:", payload);
-
       const res = await fetch(`${BASE_URL}/book`, {
         method: "POST",
         headers: {
@@ -111,8 +132,8 @@ function Payment() {
 
       alert("Payment successful ✅");
       navigate("/my-bookings");
-    } catch (error) {
-      console.log("PAYMENT ERROR:", error);
+    } catch (err) {
+      console.log("PAYMENT ERROR:", err);
       setError("Network or server error");
     } finally {
       setLoading(false);
@@ -126,11 +147,12 @@ function Payment() {
 
         <p className="text-sm text-gray-500 mb-6">
           Booking for <strong>{spotName}</strong> ({parkingType}) • Slot:{" "}
-          {selectedSlots?.[0]} • {hours} hr
+          {selectedSlots.length > 0 ? selectedSlots[0] : "N/A"} • {hours} hr
         </p>
 
         <div className="space-y-4 mb-6">
           <input
+            type="text"
             placeholder="Vehicle Number"
             value={vehicleNumber}
             onChange={(e) => setVehicleNumber(e.target.value.toUpperCase())}
@@ -138,6 +160,7 @@ function Payment() {
           />
 
           <input
+            type="text"
             placeholder="Phone Number"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
@@ -153,6 +176,7 @@ function Payment() {
               />{" "}
               Card
             </label>
+
             <label>
               <input
                 type="radio"
@@ -161,6 +185,7 @@ function Payment() {
               />{" "}
               UPI
             </label>
+
             <label>
               <input
                 type="radio"
@@ -174,24 +199,31 @@ function Payment() {
           {method === "card" && (
             <>
               <input
+                type="text"
                 placeholder="Card Number"
                 value={cardNumber}
                 onChange={(e) => setCardNumber(e.target.value)}
                 className="w-full p-3 border rounded-lg"
               />
+
               <input
+                type="text"
                 placeholder="Name on Card"
                 value={cardName}
                 onChange={(e) => setCardName(e.target.value)}
                 className="w-full p-3 border rounded-lg"
               />
+
               <input
+                type="text"
                 placeholder="Expiry"
                 value={expiry}
                 onChange={(e) => setExpiry(e.target.value)}
                 className="w-full p-3 border rounded-lg"
               />
+
               <input
+                type="password"
                 placeholder="CVV"
                 value={cvv}
                 onChange={(e) => setCvv(e.target.value)}
@@ -202,6 +234,7 @@ function Payment() {
 
           {method === "upi" && (
             <input
+              type="text"
               placeholder="UPI ID"
               value={upiId}
               onChange={(e) => setUpiId(e.target.value)}
