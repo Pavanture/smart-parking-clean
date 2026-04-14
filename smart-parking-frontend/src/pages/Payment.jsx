@@ -86,16 +86,21 @@ function Payment() {
       return;
     }
 
-    const user = JSON.parse(localStorage.getItem("user"));
+    const userData = localStorage.getItem("user");
+    const user = userData ? JSON.parse(userData) : null;
 
-    if (!user) {
-      alert("Please login first");
+    console.log("USER FROM LOCALSTORAGE:", user);
+
+    const userId = user?.id || user?.userId || user?._id || "";
+
+    if (!userId) {
+      alert("User session missing. Please login again.");
       navigate("/login");
       return;
     }
 
     const payload = {
-      user_id: user.id,
+      user_id: Number(userId),
       location: spotName,
       slot: selectedSlots[0],
       vehicle_type: parkingType === "electric" ? "Electric" : "Normal",
