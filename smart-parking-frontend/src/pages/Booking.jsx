@@ -58,9 +58,12 @@ function Booking() {
 
         if (res.ok) {
           setBookedSlots(data.bookedSlots || []);
+        } else {
+          setBookedSlots([]);
         }
       } catch (err) {
-        console.log("Error:", err);
+        console.log("Error fetching slots:", err);
+        setBookedSlots([]);
       }
     };
 
@@ -74,6 +77,26 @@ function Booking() {
   };
 
   const confirmBooking = () => {
+    if (!spotName) {
+      alert("Please select a location");
+      return;
+    }
+
+    if (!parkingType) {
+      alert("Please select parking type");
+      return;
+    }
+
+    if (!bookingDate) {
+      alert("Please select booking date");
+      return;
+    }
+
+    if (!startHour) {
+      alert("Please select start time");
+      return;
+    }
+
     if (selectedSlots.length === 0) {
       alert("Please select a slot");
       return;
@@ -89,15 +112,19 @@ function Booking() {
 
     const start_time = `${bookingDate}T${startHour}:00`;
 
+    const paymentState = {
+      spotName: spotName,
+      parkingType: parkingType,
+      selectedSlots: [...selectedSlots],
+      hours: Number(hours),
+      hourlyRate: Number(hourlyRate),
+      start_time: start_time,
+    };
+
+    console.log("BOOKING -> PAYMENT STATE:", paymentState);
+
     navigate("/payment", {
-      state: {
-        spotName,
-        parkingType,
-        selectedSlots,
-        hours,
-        hourlyRate,
-        start_time,
-      },
+      state: paymentState,
     });
   };
 
@@ -134,12 +161,15 @@ function Booking() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-blue-200 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-blue-200 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl p-10 w-full max-w-md">
         <h2 className="text-2xl font-bold mb-2">{spotName}</h2>
 
         <button
-          onClick={() => setSelectedLocation("")}
+          onClick={() => {
+            setSelectedLocation("");
+            setSelectedSlots([]);
+          }}
           className="text-sm text-blue-500 mb-4"
         >
           ← Change Location
@@ -180,6 +210,7 @@ function Booking() {
           <input
             type="date"
             value={bookingDate}
+            min={new Date().toISOString().split("T")[0]}
             onChange={(e) => setBookingDate(e.target.value)}
             className="w-full p-3 border rounded-lg"
           />
