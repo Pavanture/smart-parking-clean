@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { BASE_URL } from "../config";
 
 function Payment() {
   const navigate = useNavigate();
-  const { state } = useLocation();
 
-  const spotName = state?.spotName || "";
-  const parkingType = state?.parkingType || "";
-  const selectedSlots = state?.selectedSlots || [];
-  const hours = Number(state?.hours) || 1;
-  const hourlyRate = Number(state?.hourlyRate) || 0;
-  const start_time = state?.start_time || new Date().toISOString();
+  const pendingBooking = JSON.parse(
+    localStorage.getItem("pendingBooking") || "{}",
+  );
+
+  const spotName = pendingBooking?.spotName || "";
+  const parkingType = pendingBooking?.parkingType || "";
+  const selectedSlots = pendingBooking?.selectedSlots || [];
+  const hours = Number(pendingBooking?.hours) || 1;
+  const hourlyRate = Number(pendingBooking?.hourlyRate) || 0;
+  const start_time = pendingBooking?.start_time || new Date().toISOString();
 
   const [method, setMethod] = useState("card");
   const [cardNumber, setCardNumber] = useState("");
@@ -30,9 +33,11 @@ function Payment() {
 
   useEffect(() => {
     if (!spotName || !parkingType || selectedSlots.length === 0) {
-      navigate("/home");
+      setError(
+        "Booking details missing. Please go back and select slot again.",
+      );
     }
-  }, [navigate, spotName, parkingType, selectedSlots]);
+  }, [spotName, parkingType, selectedSlots]);
 
   const validate = () => {
     if (!vehicleNumber.trim() || !phone.trim()) {
@@ -92,9 +97,6 @@ function Payment() {
       start_time: start_time || new Date().toISOString(),
     };
 
-    console.log("PAYMENT STATE:", state);
-    console.log("PAYMENT PAYLOAD:", payload);
-
     if (
       !payload.user_id ||
       !payload.location ||
@@ -123,13 +125,13 @@ function Payment() {
       });
 
       const data = await res.json();
-      console.log("BOOK RESPONSE:", data);
 
       if (!res.ok) {
         setError(data.error || data.message || "Payment failed");
         return;
       }
 
+      localStorage.removeItem("pendingBooking");
       alert("Payment successful ✅");
       navigate("/my-bookings");
     } catch (err) {
@@ -146,7 +148,8 @@ function Payment() {
         <h2 className="text-2xl font-bold mb-2">Payment</h2>
 
         <p className="text-sm text-gray-500 mb-6">
-          Booking for <strong>{spotName}</strong> ({parkingType}) • Slot:{" "}
+          Booking for <strong>{spotName || "N/A"}</strong> (
+          {parkingType || "N/A"}) • Slot:{" "}
           {selectedSlots.length > 0 ? selectedSlots[0] : "N/A"} • {hours} hr
         </p>
 
@@ -205,7 +208,6 @@ function Payment() {
                 onChange={(e) => setCardNumber(e.target.value)}
                 className="w-full p-3 border rounded-lg"
               />
-
               <input
                 type="text"
                 placeholder="Name on Card"
@@ -213,7 +215,6 @@ function Payment() {
                 onChange={(e) => setCardName(e.target.value)}
                 className="w-full p-3 border rounded-lg"
               />
-
               <input
                 type="text"
                 placeholder="Expiry"
@@ -221,7 +222,6 @@ function Payment() {
                 onChange={(e) => setExpiry(e.target.value)}
                 className="w-full p-3 border rounded-lg"
               />
-
               <input
                 type="password"
                 placeholder="CVV"

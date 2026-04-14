@@ -43,6 +43,7 @@ function Booking() {
     return parkingType === "electric" ? ["E1"] : ["N1", "N2"];
   }, [parkingType]);
 
+  // 🔥 Fetch booked slots
   useEffect(() => {
     if (!spotName) return;
 
@@ -58,42 +59,26 @@ function Booking() {
 
         if (res.ok) {
           setBookedSlots(data.bookedSlots || []);
-        } else {
-          setBookedSlots([]);
         }
       } catch (err) {
         console.log("Error fetching slots:", err);
-        setBookedSlots([]);
       }
     };
 
     fetchSlots();
   }, [spotName, parkingType]);
 
+  // 🔥 Slot select
   const toggleSlot = (slot) => {
     if (bookedSlots.includes(slot)) return;
 
     setSelectedSlots((prev) => (prev.includes(slot) ? [] : [slot]));
   };
 
+  // 🔥 CONFIRM BOOKING (IMPORTANT FIX)
   const confirmBooking = () => {
     if (!spotName) {
       alert("Please select a location");
-      return;
-    }
-
-    if (!parkingType) {
-      alert("Please select parking type");
-      return;
-    }
-
-    if (!bookingDate) {
-      alert("Please select booking date");
-      return;
-    }
-
-    if (!startHour) {
-      alert("Please select start time");
       return;
     }
 
@@ -112,22 +97,24 @@ function Booking() {
 
     const start_time = `${bookingDate}T${startHour}:00`;
 
-    const paymentState = {
-      spotName: spotName,
-      parkingType: parkingType,
+    // ✅ STORE IN LOCAL STORAGE (MAIN FIX)
+    const bookingData = {
+      spotName,
+      parkingType,
       selectedSlots: [...selectedSlots],
       hours: Number(hours),
       hourlyRate: Number(hourlyRate),
-      start_time: start_time,
+      start_time,
     };
 
-    console.log("BOOKING -> PAYMENT STATE:", paymentState);
+    console.log("BOOKING DATA:", bookingData);
 
-    navigate("/payment", {
-      state: paymentState,
-    });
+    localStorage.setItem("pendingBooking", JSON.stringify(bookingData));
+
+    navigate("/payment");
   };
 
+  // 🔥 LOCATION SELECT UI
   if (!selectedLocation) {
     return (
       <div className="min-h-screen p-10 bg-gray-100">
@@ -160,6 +147,7 @@ function Booking() {
     );
   }
 
+  // 🔥 MAIN UI
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-blue-200 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl p-10 w-full max-w-md">
@@ -175,6 +163,7 @@ function Booking() {
           ← Change Location
         </button>
 
+        {/* Parking Type */}
         <div className="flex gap-3 mb-6">
           <button
             onClick={() => {
@@ -205,6 +194,7 @@ function Booking() {
           </button>
         </div>
 
+        {/* Date */}
         <div className="mb-4">
           <label className="block mb-2 font-medium">Parking Date</label>
           <input
@@ -216,6 +206,7 @@ function Booking() {
           />
         </div>
 
+        {/* Time */}
         <div className="mb-4">
           <label className="block mb-2 font-medium">Start Time</label>
           <input
@@ -226,6 +217,7 @@ function Booking() {
           />
         </div>
 
+        {/* Hours */}
         <div className="mb-6">
           <label className="block mb-2 font-medium">Parking Duration</label>
           <select
@@ -241,6 +233,7 @@ function Booking() {
           </select>
         </div>
 
+        {/* Slots */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           {slots.map((slot) => {
             const disabled = bookedSlots.includes(slot);
@@ -251,7 +244,7 @@ function Booking() {
                 key={slot}
                 onClick={() => toggleSlot(slot)}
                 disabled={disabled}
-                className={`py-3 rounded-lg text-sm ${
+                className={`py-3 rounded-lg ${
                   disabled
                     ? "bg-red-500 text-white"
                     : selected
@@ -265,6 +258,7 @@ function Booking() {
           })}
         </div>
 
+        {/* Info */}
         <div className="mb-4 text-sm">
           <p>
             <strong>Selected Slot:</strong> {selectedSlots[0] || "None"}
@@ -272,11 +266,9 @@ function Booking() {
           <p>
             <strong>Total Amount:</strong> ₹{hourlyRate * hours}
           </p>
-          <p className="text-red-600 mt-2">
-            Extra charge: ₹10 per 15 minutes after expiry time.
-          </p>
         </div>
 
+        {/* Buttons */}
         <div className="flex gap-3">
           <button
             onClick={confirmBooking}
