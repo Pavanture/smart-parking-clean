@@ -1,193 +1,195 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { BASE_URL } from "../config";
 
 function MyBookings() {
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const [extraCharges, setExtraCharges] = useState({});
 
-  const loadBookings = async () => {
-    const user = JSON.parse(localStorage.getItem("user"));
+  const user = JSON.parse(localStorage.getItem("user"));
 
-    if (!user || !user.id) {
-      alert("Please login first");
-      navigate("/login");
-      return;
-    }
+  useEffect(() => {
+    fetchBookings();
+  }, []);
 
+  const fetchBookings = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/my-bookings/${user.id}`);
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.message || "Failed to load bookings");
-        setBookings([]);
+      if (!user) {
+        alert("Please login first");
+        navigate("/login");
         return;
       }
 
-      setBookings(data.bookings || []);
+      const res = await fetch(`${BASE_URL}/my-bookings/${user.id}`);
+      const data = await res.json();
+
+      if (res.ok) {
+        const fetchedBookings = data.bookings || [];
+        setBookings(fetchedBookings);
+
+        // Overstay charges fetch
+        fetchedBookings.forEach((booking) => {
+          fetchExtraCharge(booking.id);
+        });
+      } else {
+        alert(data.message || "Failed to fetch bookings");
+      }
     } catch (error) {
-      console.log("Error loading bookings:", error);
-      alert("Server error");
-      setBookings([]);
+      console.log("Error fetching bookings:", error);
+      alert("Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    const fetchBookings = async () => {
-      const user = JSON.parse(localStorage.getItem("user"));
+  const fetchExtraCharge = async (bookingId) => {
+    try {
+      const res = await fetch(`${BASE_URL}/overstay-charge/${bookingId}`);
+      const data = await res.json();
 
-      if (!user || !user.id) {
-        navigate("/login");
-        return;
+      if (res.ok) {
+        setExtraCharges((prev) => ({
+          ...prev,
+          [bookingId]: data.extraCharge || 0,
+        }));
       }
-
-      try {
-        const res = await fetch(`${BASE_URL}/my-bookings/${user.id}`);
-        const data = await res.json();
-
-        if (res.ok) {
-          setBookings(data.bookings || []);
-        } else {
-          setBookings([]);
-        }
-      } catch (error) {
-        console.log("Error loading bookings:", error);
-        setBookings([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBookings();
-  }, [navigate]);
+    } catch (error) {
+      console.log("Extra charge fetch error:", error);
+    }
+  };
 
   const cancelBooking = async (bookingId) => {
+    const confirmCancel = window.confirm(
+      "Are you sure you want to cancel this booking?",
+    );
+
+    if (!confirmCancel) return;
+
     try {
       const res = await fetch(`${BASE_URL}/cancel-booking/${bookingId}`, {
-        method: "PUT",
+        method: "DELETE",
       });
 
       const data = await res.json();
 
-      if (!res.ok) {
-        alert(data.message || "Cancel failed");
-        return;
-      }
+      if (res.ok) {
+        alert("Booking cancelled successfully");
 
-      alert("Booking cancelled successfully");
-      loadBookings();
+        setBookings((prev) =>
+          prev.map((booking) =>
+            booking.id === bookingId
+              ? { ...booking, booking_status: "Cancelled", status: "Cancelled" }
+              : booking,
+          ),
+        );
+
+        setExtraCharges((prev) => ({
+          ...prev,
+          [bookingId]: 0,
+        }));
+      } else {
+        alert(data.message || "Failed to cancel booking");
+      }
     } catch (error) {
-      console.log("Error cancelling booking:", error);
-      alert("Server error");
+      console.log("Cancel booking error:", error);
+      alert("Something went wrong while cancelling booking");
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-xl">
+        Loading bookings...
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-blue-200 py-10">
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-3xl font-bold">My Bookings</h2>
-            <p className="text-gray-600">
-              All confirmed bookings are listed here.
-            </p>
-          </div>
+    <div className="min-h-screen bg-gray-100 p-6">
+      <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-2xl p-6">
+        <h1 className="text-3xl font-bold mb-6 text-center">My Bookings</h1>
 
-          <Link
-            to="/dashboard"
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
-          >
-            Back to Dashboard
-          </Link>
-        </div>
-
-        {loading ? (
-          <div className="bg-white p-10 rounded-2xl shadow-xl text-center">
-            <p className="text-gray-600">Loading bookings...</p>
-          </div>
-        ) : bookings.length === 0 ? (
-          <div className="bg-white p-10 rounded-2xl shadow-xl text-center">
-            <p className="text-gray-600">No bookings yet.</p>
-            <Link
-              to="/dashboard"
-              className="mt-4 inline-block bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700"
+        {bookings.length === 0 ? (
+          <div className="text-center">
+            <p className="text-gray-600 mb-4">No bookings found.</p>
+            <button
+              onClick={() => navigate("/home")}
+              className="bg-blue-600 text-white px-5 py-2 rounded-lg"
             >
-              Book now
-            </Link>
+              Back to Home
+            </button>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="grid gap-4">
             {bookings.map((booking) => (
               <div
                 key={booking.id}
-                className="bg-white p-6 rounded-2xl shadow-xl"
+                className="border rounded-xl p-4 shadow-sm bg-gray-50"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="text-xl font-semibold">
-                      {booking.location}
-                    </h3>
+                <h2 className="text-xl font-semibold mb-2">
+                  {booking.location}
+                </h2>
 
-                    <p className="text-sm text-gray-600">
-                      {booking.vehicle_type} parking • Slot: {booking.slot} •{" "}
-                      {booking.hours} hour{booking.hours > 1 ? "s" : ""}
-                    </p>
+                <p>
+                  <strong>Parking Type:</strong> {booking.vehicle_type}
+                </p>
+                <p>
+                  <strong>Slot:</strong> {booking.slot}
+                </p>
+                <p>
+                  <strong>Hours:</strong> {booking.hours}
+                </p>
+                <p>
+                  <strong>Total Amount:</strong> ₹{booking.amount}
+                </p>
+                <p>
+                  <strong>Status:</strong>{" "}
+                  {booking.status || booking.booking_status || "Booked"}
+                </p>
 
-                    <p className="text-sm text-gray-500">
-                      Vehicle No: {booking.vehicle_number}
-                    </p>
+                <p>
+                  <strong>Start Time:</strong>{" "}
+                  {booking.start_time
+                    ? new Date(booking.start_time).toLocaleString()
+                    : "N/A"}
+                </p>
 
-                    <p className="text-sm text-gray-500">
-                      Phone: {booking.phone}
-                    </p>
+                <p>
+                  <strong>Expiry Time:</strong>{" "}
+                  {booking.expiry_time
+                    ? new Date(booking.expiry_time).toLocaleString()
+                    : "N/A"}
+                </p>
 
-                    <p className="text-sm text-gray-500">
-                      Amount: ₹{booking.amount}
-                    </p>
+                <p className="mt-2 text-red-600 font-semibold">
+                  Extra Charge: ₹{extraCharges[booking.id] || 0}
+                </p>
 
-                    <p className="text-sm text-gray-500">
-                      Payment: {booking.payment_mode}
-                    </p>
+                {extraCharges[booking.id] > 0 && (
+                  <p className="text-sm text-red-500">
+                    ₹10 per 15 minutes after expiry time
+                  </p>
+                )}
 
-                    <p className="text-sm text-gray-500">
-                      Status: {booking.status || booking.booking_status}
-                    </p>
-
-                    <p className="text-sm text-gray-500">
-                      Expiry:{" "}
-                      {booking.expiry_time
-                        ? new Date(booking.expiry_time).toLocaleString()
-                        : "N/A"}
-                    </p>
-
-                    <p className="text-sm text-gray-500">
-                      Booked on:{" "}
-                      {booking.created_at
-                        ? new Date(booking.created_at).toLocaleString()
-                        : "N/A"}
-                    </p>
-                  </div>
-
-                  <div className="text-right flex flex-col items-end gap-2">
-                    <p className="text-lg font-bold">₹{booking.amount}</p>
-
-                    {booking.booking_status === "Active" ? (
+                <div className="mt-4 flex gap-3">
+                  {booking.booking_status !== "Cancelled" &&
+                    booking.status !== "Cancelled" && (
                       <button
                         onClick={() => cancelBooking(booking.id)}
-                        className="mt-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+                        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"
                       >
-                        Cancel
+                        Cancel Booking
                       </button>
-                    ) : (
-                      <span className="mt-2 px-4 py-2 rounded-lg bg-gray-200 text-gray-700">
-                        {booking.booking_status}
-                      </span>
                     )}
-                  </div>
+
+                  <button
+                    onClick={() => navigate("/home")}
+                    className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg"
+                  >
+                    Back to Home
+                  </button>
                 </div>
               </div>
             ))}

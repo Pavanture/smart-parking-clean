@@ -144,7 +144,7 @@ function Profile() {
           )}
 
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate("/Home")}
             className="w-full mt-3 bg-gray-300 text-gray-800 py-2 rounded-lg hover:bg-gray-400 transition"
           >
             Back to Dashboard

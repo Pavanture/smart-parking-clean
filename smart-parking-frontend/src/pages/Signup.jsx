@@ -1,163 +1,114 @@
-import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import axios from "axios";
+import { useNavigate, Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { BASE_URL } from "../config";
 
 function Signup() {
   const navigate = useNavigate();
 
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    phone: "",
-  });
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
 
   const handleSignup = async (e) => {
     e.preventDefault();
 
-    if (
-      !formData.name ||
-      !formData.email ||
-      !formData.password ||
-      !formData.phone
-    ) {
-      setMessage("All fields are required");
+    if (!name || !email || !password) {
+      alert("Please fill all fields");
       return;
     }
 
     try {
       setLoading(true);
-      setMessage("");
 
-      const res = await axios.post(`${BASE_URL}/signup`, formData);
+      const res = await fetch(`${BASE_URL}/signup`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, email, password }),
+      });
 
-      setMessage(res.data.message || "Signup successful");
-      setFormData({ name: "", email: "", password: "" });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.message || "Signup failed");
+        return;
+      }
 
       alert("Signup successful");
       navigate("/login");
-    } catch (err) {
-      setMessage(err.response?.data?.message || "Signup failed");
+    } catch (error) {
+      console.log(error);
+      alert("Server error");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>Create Account</h2>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-200 via-white to-blue-300">
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white p-10 rounded-2xl shadow-2xl w-96"
+      >
+        <h2 className="text-3xl font-bold mb-6 text-center text-indigo-700">
+          Smart Parking Signup
+        </h2>
 
-        <form onSubmit={handleSignup} style={styles.form}>
+        <form onSubmit={handleSignup} className="space-y-4">
           <input
             type="text"
-            name="name"
-            placeholder="Full Name"
-            value={formData.name}
-            onChange={handleChange}
-            style={styles.input}
+            placeholder="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full p-3 border rounded-lg focus:outline-indigo-500"
           />
 
           <input
             type="email"
-            name="email"
-            placeholder="Email Address"
-            value={formData.email}
-            onChange={handleChange}
-            style={styles.input}
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-3 border rounded-lg focus:outline-indigo-500"
           />
 
           <input
             type="password"
-            name="password"
             placeholder="Password"
-            value={formData.password}
-            onChange={handleChange}
-            style={styles.input}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-3 border rounded-lg focus:outline-indigo-500"
           />
 
-          <input
-            type="text"
-            name="phone"
-            placeholder="Phone Number"
-            value={formData.phone}
-            onChange={handleChange}
-            style={styles.input}
-          />
-
-          <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? "Creating Account..." : "Sign Up"}
+          <button
+            type="submit"
+            disabled={loading}
+            className={`w-full py-3 rounded-lg text-white transition ${
+              loading
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-indigo-600 hover:bg-indigo-700"
+            }`}
+          >
+            {loading ? "Signing up..." : "Sign Up"}
           </button>
         </form>
 
-        {message && <p style={styles.message}>{message}</p>}
-
-        <p className="text-center mt-4 text-sm">
+        <p className="mt-4 text-center text-sm text-gray-600">
           Already have an account?{" "}
           <Link
             to="/login"
-            className="text-blue-600 font-semibold hover:underline"
+            className="text-indigo-600 font-semibold hover:underline"
           >
             Login
           </Link>
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    height: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "linear-gradient(135deg, #1e3c72, #2a5298)",
-  },
-  card: {
-    background: "white",
-    padding: "40px",
-    borderRadius: "12px",
-    width: "350px",
-    boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
-  },
-  title: {
-    textAlign: "center",
-    marginBottom: "20px",
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "15px",
-  },
-  input: {
-    padding: "10px",
-    borderRadius: "6px",
-    border: "1px solid #ccc",
-  },
-  button: {
-    padding: "10px",
-    borderRadius: "6px",
-    border: "none",
-    backgroundColor: "#2a5298",
-    color: "white",
-    cursor: "pointer",
-  },
-  message: {
-    marginTop: "15px",
-    textAlign: "center",
-  },
-};
 
 export default Signup;

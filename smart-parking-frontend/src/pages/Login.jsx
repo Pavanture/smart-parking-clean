@@ -9,6 +9,8 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  const [loading, setLoading] = useState(false); // 🔥 new
+
   const handleLogin = async (e) => {
     e.preventDefault();
 
@@ -18,6 +20,8 @@ function Login() {
     }
 
     try {
+      setLoading(true); // 🔥 start loading
+
       const res = await fetch(`${BASE_URL}/login`, {
         method: "POST",
         headers: {
@@ -35,11 +39,14 @@ function Login() {
 
       localStorage.setItem("user", JSON.stringify(data.user));
       localStorage.setItem("isLoggedIn", "true");
+
       alert("Login successful");
-      navigate("/dashboard");
+      navigate("/home");
     } catch (error) {
       console.log(error);
       alert("Server error");
+    } finally {
+      setLoading(false); // 🔥 stop loading
     }
   };
 
@@ -73,9 +80,14 @@ function Login() {
 
           <button
             type="submit"
-            className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition"
+            disabled={loading}
+            className={`w-full py-3 rounded-lg text-white transition ${
+              loading
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-indigo-600 hover:bg-indigo-700"
+            }`}
           >
-            Login
+            {loading ? "Logging in..." : "Login"}
           </button>
         </form>
 

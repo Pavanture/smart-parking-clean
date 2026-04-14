@@ -6,32 +6,46 @@ function Booking() {
   const navigate = useNavigate();
   const { state } = useLocation();
 
-  const spotName = state?.spotName || "Selected Parking";
-  const hourlyRate = state?.hourlyRate || 0;
+  const initialSearch = state?.searchTerm || "";
+
+  const [selectedLocation, setSelectedLocation] = useState(
+    state?.spotName || "",
+  );
+  const [search, setSearch] = useState(initialSearch);
+
+  const locations = [
+    { name: "Baner", rate: 50 },
+    { name: "Balewadi", rate: 40 },
+    { name: "Hinjewadi", rate: 60 },
+    { name: "Wakad", rate: 45 },
+    { name: "Kothrud", rate: 55 },
+    { name: "Shivajinagar", rate: 70 },
+  ];
+
+  const filteredLocations = locations.filter((loc) =>
+    loc.name.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const spotName = selectedLocation;
+  const hourlyRate =
+    locations.find((l) => l.name === selectedLocation)?.rate || 0;
 
   const [parkingType, setParkingType] = useState("normal");
   const [hours, setHours] = useState(1);
-  const [startHour, setStartHour] = useState(13);
-  const [bookingDate, setBookingDate] = useState(() => {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const dd = String(today.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  });
-
+  const [bookingDate, setBookingDate] = useState(
+    new Date().toISOString().split("T")[0],
+  );
+  const [startHour, setStartHour] = useState("10:00");
   const [selectedSlots, setSelectedSlots] = useState([]);
   const [bookedSlots, setBookedSlots] = useState([]);
-  const [loading, setLoading] = useState(false);
 
   const slots = useMemo(() => {
-    if (parkingType === "electric") {
-      return ["E1", "E2"];
-    }
-    return ["N1", "N2", "N3", "N4", "N5"];
+    return parkingType === "electric" ? ["E1"] : ["N1", "N2"];
   }, [parkingType]);
 
   useEffect(() => {
+    if (!spotName) return;
+
     const fetchSlots = async () => {
       try {
         const vehicleType = parkingType === "electric" ? "Electric" : "Normal";
@@ -39,34 +53,27 @@ function Booking() {
         const res = await fetch(
           `${BASE_URL}/available-slots/${spotName}/${vehicleType}`,
         );
+
         const data = await res.json();
 
         if (res.ok) {
           setBookedSlots(data.bookedSlots || []);
         }
-      } catch (error) {
-        console.log("Error fetching slots:", error);
+      } catch (err) {
+        console.log("Error:", err);
       }
     };
 
     fetchSlots();
   }, [spotName, parkingType]);
 
-  useEffect(() => {
-    setSelectedSlots((prev) =>
-      prev.filter((slot) => !bookedSlots.includes(slot)),
-    );
-  }, [bookedSlots]);
-
   const toggleSlot = (slot) => {
     if (bookedSlots.includes(slot)) return;
 
-    setSelectedSlots((prev) =>
-      prev.includes(slot) ? prev.filter((s) => s !== slot) : [slot],
-    );
+    setSelectedSlots((prev) => (prev.includes(slot) ? [] : [slot]));
   };
 
-  const confirmBooking = async () => {
+  const confirmBooking = () => {
     if (selectedSlots.length === 0) {
       alert("Please select a slot");
       return;
@@ -80,7 +87,8 @@ function Booking() {
       return;
     }
 
-    // Send user to payment page first, and payment page will complete booking.
+    const start_time = `${bookingDate}T${startHour}:00`;
+
     navigate("/payment", {
       state: {
         spotName,
@@ -88,17 +96,54 @@ function Booking() {
         selectedSlots,
         hours,
         hourlyRate,
+        start_time,
       },
     });
   };
+
+  if (!selectedLocation) {
+    return (
+      <div className="min-h-screen p-10 bg-gray-100">
+        <h1 className="text-3xl font-bold mb-6 text-center">
+          Select Parking Location
+        </h1>
+
+        <input
+          type="text"
+          placeholder="Search location..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full max-w-md mx-auto block p-3 border rounded-lg mb-6"
+        />
+
+        <div className="flex flex-col gap-4 max-w-md mx-auto">
+          {filteredLocations.map((loc) => (
+            <div
+              key={loc.name}
+              onClick={() => setSelectedLocation(loc.name)}
+              className="bg-white p-6 rounded-xl shadow hover:scale-105 transition cursor-pointer"
+            >
+              <h2 className="text-xl font-bold">{loc.name}</h2>
+              <p>₹{loc.rate}/hour</p>
+              <p>2 Normal Slots • 1 EV Slot</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-blue-200 flex items-center justify-center">
       <div className="bg-white rounded-2xl shadow-2xl p-10 w-full max-w-md">
         <h2 className="text-2xl font-bold mb-2">{spotName}</h2>
-        <p className="text-sm text-gray-500 mb-6">
-          Choose a parking type, select a slot, and pick duration (hours).
-        </p>
+
+        <button
+          onClick={() => setSelectedLocation("")}
+          className="text-sm text-blue-500 mb-4"
+        >
+          ← Change Location
+        </button>
 
         <div className="flex gap-3 mb-6">
           <button
@@ -106,13 +151,13 @@ function Booking() {
               setParkingType("normal");
               setSelectedSlots([]);
             }}
-            className={`flex-1 py-2 rounded-lg transition ${
+            className={`flex-1 py-2 rounded-lg ${
               parkingType === "normal"
                 ? "bg-indigo-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                : "bg-gray-100"
             }`}
           >
-            Normal (5 slots)
+            Normal (2)
           </button>
 
           <button
@@ -120,58 +165,44 @@ function Booking() {
               setParkingType("electric");
               setSelectedSlots([]);
             }}
-            className={`flex-1 py-2 rounded-lg transition ${
+            className={`flex-1 py-2 rounded-lg ${
               parkingType === "electric"
                 ? "bg-indigo-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                : "bg-gray-100"
             }`}
           >
-            Electric (2 slots)
+            Electric (1)
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div>
-            <label className="block text-sm text-gray-600 mb-2">
-              Booking date
-            </label>
-            <input
-              type="date"
-              value={bookingDate}
-              onChange={(e) => setBookingDate(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-indigo-500"
-            />
-          </div>
+        <div className="mb-4">
+          <label className="block mb-2 font-medium">Parking Date</label>
+          <input
+            type="date"
+            value={bookingDate}
+            onChange={(e) => setBookingDate(e.target.value)}
+            className="w-full p-3 border rounded-lg"
+          />
+        </div>
 
-          <div>
-            <label className="block text-sm text-gray-600 mb-2">
-              Start time
-            </label>
-            <select
-              value={startHour}
-              onChange={(e) => setStartHour(Number(e.target.value))}
-              className="w-full p-2 border rounded-lg focus:outline-indigo-500"
-            >
-              {Array.from({ length: 24 }, (_, i) => i).map((h) => (
-                <option key={h} value={h}>
-                  {h % 12 === 0 ? 12 : h % 12}
-                  {h < 12 ? " AM" : " PM"}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="mb-4">
+          <label className="block mb-2 font-medium">Start Time</label>
+          <input
+            type="time"
+            value={startHour}
+            onChange={(e) => setStartHour(e.target.value)}
+            className="w-full p-3 border rounded-lg"
+          />
         </div>
 
         <div className="mb-6">
-          <label className="block text-sm text-gray-600 mb-2">
-            Duration (hours)
-          </label>
+          <label className="block mb-2 font-medium">Parking Duration</label>
           <select
             value={hours}
             onChange={(e) => setHours(Number(e.target.value))}
-            className="w-32 p-2 border rounded-lg focus:outline-indigo-500"
+            className="w-full p-3 border rounded-lg"
           >
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+            {[1, 2, 3, 4, 5, 6].map((h) => (
               <option key={h} value={h}>
                 {h} hour{h > 1 ? "s" : ""}
               </option>
@@ -179,7 +210,7 @@ function Booking() {
           </select>
         </div>
 
-        <div className="grid grid-cols-5 gap-3 mb-6">
+        <div className="grid grid-cols-3 gap-3 mb-6">
           {slots.map((slot) => {
             const disabled = bookedSlots.includes(slot);
             const selected = selectedSlots.includes(slot);
@@ -189,49 +220,43 @@ function Booking() {
                 key={slot}
                 onClick={() => toggleSlot(slot)}
                 disabled={disabled}
-                className={`py-3 rounded-lg border transition ${
+                className={`py-3 rounded-lg text-sm ${
                   disabled
-                    ? "bg-red-500 text-white border-red-500 cursor-not-allowed"
+                    ? "bg-red-500 text-white"
                     : selected
-                      ? "bg-indigo-600 text-white border-indigo-600"
-                      : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                      ? "bg-green-500 text-white"
+                      : "bg-gray-200"
                 }`}
               >
                 {slot}
-                {disabled && (
-                  <span className="block text-xs font-semibold">Booked</span>
-                )}
               </button>
             );
           })}
         </div>
 
-        <div className="mb-4 text-sm text-gray-600">
+        <div className="mb-4 text-sm">
           <p>
-            <strong>Selected Slot:</strong>{" "}
-            {selectedSlots.length > 0 ? selectedSlots[0] : "None"}
+            <strong>Selected Slot:</strong> {selectedSlots[0] || "None"}
           </p>
           <p>
             <strong>Total Amount:</strong> ₹{hourlyRate * hours}
+          </p>
+          <p className="text-red-600 mt-2">
+            Extra charge: ₹10 per 15 minutes after expiry time.
           </p>
         </div>
 
         <div className="flex gap-3">
           <button
             onClick={confirmBooking}
-            disabled={selectedSlots.length === 0 || loading}
-            className={`flex-1 py-3 rounded-lg text-white transition ${
-              selectedSlots.length > 0 && !loading
-                ? "bg-indigo-600 hover:bg-indigo-700"
-                : "bg-gray-300 cursor-not-allowed"
-            }`}
+            className="flex-1 py-3 bg-indigo-600 text-white rounded-lg"
           >
-            {loading ? "Booking..." : "Confirm Booking"}
+            Confirm Booking
           </button>
 
           <button
-            onClick={() => navigate("/dashboard")}
-            className="flex-1 py-3 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition"
+            onClick={() => navigate("/home")}
+            className="flex-1 py-3 bg-gray-300 rounded-lg"
           >
             Cancel
           </button>

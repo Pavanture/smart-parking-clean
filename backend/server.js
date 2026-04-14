@@ -1,22 +1,25 @@
 require("dotenv").config();
 const express = require("express");
-
 const cors = require("cors");
 const db = require("./db");
 
 const app = express();
 
 const allowedOrigin = process.env.ALLOWED_ORIGIN || "*";
+
 app.use(
   cors({
     origin: allowedOrigin,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   })
 );
+
 app.use(express.json());
+
 app.get("/", (req, res) => {
   res.send("Smart Parking backend is running");
 });
+
 console.log("MYSQL PROJECT STARTED");
 
 /* ---------------- DATABASE CONNECTION ---------------- */
@@ -34,11 +37,12 @@ db.connect((err) => {
 app.post("/signup", (req, res) => {
   const { name, email, password, phone } = req.body;
 
-  const sql = "INSERT INTO users (name, email, password, phone) VALUES (?, ?, ?, ?)";
+  const sql =
+    "INSERT INTO users (name, email, password, phone) VALUES (?, ?, ?, ?)";
 
   db.query(sql, [name, email, password, phone], (err, result) => {
     if (err) {
-      console.log(err);
+      console.log("Signup error:", err);
       return res.status(500).json({ message: "Database Error" });
     }
 
@@ -55,6 +59,7 @@ app.post("/login", (req, res) => {
 
   db.query(sql, [email], (err, results) => {
     if (err) {
+      console.log("Login error:", err);
       return res.status(500).json({ message: "Server error" });
     }
 
@@ -86,19 +91,17 @@ app.get("/admin/dashboard", (req, res) => {
   const sql = `
     SELECT 
       COUNT(*) AS totalBookings,
-
       SUM(CASE WHEN booking_status = 'Active' THEN 1 ELSE 0 END) AS activeBookings,
       SUM(CASE WHEN booking_status = 'Cancelled' THEN 1 ELSE 0 END) AS cancelledBookings,
       SUM(CASE WHEN booking_status = 'Expired' THEN 1 ELSE 0 END) AS expiredBookings,
-
       SUM(CASE WHEN payment_status = 'Success' THEN amount ELSE 0 END) AS totalRevenue,
       SUM(CASE WHEN payment_status = 'Refunded' THEN amount ELSE 0 END) AS totalRefunded
-
     FROM bookings
   `;
 
   db.query(sql, (err, results) => {
     if (err) {
+      console.log("Admin dashboard error:", err);
       return res.status(500).json({ message: "Error fetching dashboard data" });
     }
 
@@ -114,6 +117,7 @@ app.get("/my-bookings/:userId", (req, res) => {
   const sql = `
     SELECT *,
     CASE 
+      WHEN booking_status = 'Cancelled' THEN 'Cancelled'
       WHEN expiry_time > NOW() THEN 'Active'
       ELSE 'Expired'
     END AS status
@@ -124,6 +128,7 @@ app.get("/my-bookings/:userId", (req, res) => {
 
   db.query(sql, [userId], (err, results) => {
     if (err) {
+      console.log("Fetch bookings error:", err);
       return res.status(500).json({ message: "Error fetching bookings" });
     }
 
@@ -142,9 +147,9 @@ app.get("/available-slots/:location/:vehicleType", (req, res) => {
   let allSlots = [];
 
   if (vehicleType === "Normal") {
-    allSlots = ["N1", "N2", "N3", "N4", "N5"];
+    allSlots = ["N1", "N2"];
   } else if (vehicleType === "Electric") {
-    allSlots = ["E1", "E2"];
+    allSlots = ["E1"];
   } else {
     return res.status(400).json({ message: "Invalid vehicle type" });
   }
@@ -154,10 +159,12 @@ app.get("/available-slots/:location/:vehicleType", (req, res) => {
     WHERE location = ?
     AND vehicle_type = ?
     AND booking_status = 'Active'
+    AND expiry_time > NOW()
   `;
 
   db.query(sql, [location, vehicleType], (err, results) => {
     if (err) {
+      console.log("Available slots error:", err);
       return res.status(500).json({ message: "Error checking slots" });
     }
 
@@ -178,8 +185,9 @@ app.get("/available-slots/:location/:vehicleType", (req, res) => {
 });
 
 /* ---------------- BOOK SLOT ---------------- */
-
 app.post("/book", (req, res) => {
+  console.log("BOOK REQ BODY:", req.body);
+
   const {
     user_id,
     location,
@@ -190,36 +198,65 @@ app.post("/book", (req, res) => {
     hours,
     amount,
     payment_mode,
+    start_time,
   } = req.body;
+
+  if (
+    !user_id ||
+    !location ||
+    !slot ||
+    !vehicle_type ||
+    !hours ||
+    !amount ||
+    !payment_mode
+  ) {
+    return res.status(400).json({ message: "Missing required booking fields" });
+  }
 
   const checkSql = `
     SELECT * FROM bookings
     WHERE location = ?
     AND slot = ?
     AND booking_status = 'Active'
+    AND expiry_time > NOW()
   `;
 
   db.query(checkSql, [location, slot], (err, results) => {
     if (err) {
-      return res.status(500).json({ message: "Server error" });
+      console.log("Book slot check error:", err);
+      return res.status(500).json({
+        message: "Server error while checking slot",
+        error: err.message,
+      });
     }
 
     if (results.length > 0) {
       return res.status(400).json({ message: "Slot already booked" });
     }
 
-    const now = new Date();
-    const expiry = new Date(now.getTime() + hours * 60 * 60 * 1000);
+    const startDateObj = start_time ? new Date(start_time) : new Date();
+
+    if (isNaN(startDateObj.getTime())) {
+      return res.status(400).json({ message: "Invalid start time" });
+    }
+
+    const expiryDateObj = new Date(
+      startDateObj.getTime() + Number(hours) * 60 * 60 * 1000
+    );
+
+    const formattedStartTime = startDateObj
+      .toISOString()
+      .slice(0, 19)
+      .replace("T", " ");
+
+    const formattedExpiryTime = expiryDateObj
+      .toISOString()
+      .slice(0, 19)
+      .replace("T", " ");
 
     const insertSql = `
-      INSERT INTO bookings 
-      (user_id, location, slot, vehicle_type, vehicle_number, phone, hours, amount, payment_mode, expiry_time, booking_status, payment_status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active', 'Success')
-    `;
-
-    db.query(
-      insertSql,
-      [
+      INSERT INTO bookings
+      (
         user_id,
         location,
         slot,
@@ -229,48 +266,125 @@ app.post("/book", (req, res) => {
         hours,
         amount,
         payment_mode,
-        expiry,
+        start_time,
+        expiry_time,
+        booking_status,
+        payment_status
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    db.query(
+      insertSql,
+      [
+        Number(user_id),
+        location,
+        slot,
+        vehicle_type,
+        vehicle_number || "MH12AB1234",
+        phone || "9999999999",
+        Number(hours),
+        Number(amount),
+        payment_mode,
+        formattedStartTime,
+        formattedExpiryTime,
+        "Active",
+        "Success",
       ],
       (err, result) => {
         if (err) {
-          return res.status(500).json({ message: "Booking failed" });
+          console.log("Booking insert error full:", err);
+          return res.status(500).json({
+            message: "Booking failed",
+            error: err.message,
+          });
         }
 
-        res.json({
-          message: "Booking successful (Fake Payment)",
+        return res.json({
+          message: "Booking successful",
           bookingId: result.insertId,
-          expiry_time: expiry,
+          start_time: formattedStartTime,
+          expiry_time: formattedExpiryTime,
         });
       }
     );
   });
 });
-
 /* ---------------- CANCEL BOOKING ---------------- */
 
-app.put("/cancel-booking/:bookingId", (req, res) => {
-  const bookingId = req.params.bookingId;
+app.delete("/cancel-booking/:id", (req, res) => {
+  const bookingId = req.params.id;
 
   const sql = `
-    UPDATE bookings 
-    SET booking_status = 'Cancelled',
-        payment_status = 'Refunded'
-    WHERE id = ? AND booking_status = 'Active'
+    UPDATE bookings
+    SET booking_status = 'Cancelled'
+    WHERE id = ?
   `;
 
   db.query(sql, [bookingId], (err, result) => {
     if (err) {
-      return res.status(500).json({ message: "Error cancelling booking" });
+      console.log("Cancel booking error:", err);
+      return res.status(500).json({ message: "Server error" });
     }
 
     if (result.affectedRows === 0) {
-      return res.status(400).json({
-        message: "Booking already cancelled or expired",
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    return res.json({ message: "Booking cancelled successfully" });
+  });
+});
+
+/* ---------------- OVERSTAY CHARGE ---------------- */
+
+app.get("/overstay-charge/:bookingId", (req, res) => {
+  const bookingId = req.params.bookingId;
+
+  const sql = `
+    SELECT id, expiry_time, booking_status
+    FROM bookings
+    WHERE id = ?
+  `;
+
+  db.query(sql, [bookingId], (err, results) => {
+    if (err) {
+      console.log("Overstay charge error:", err);
+      return res.status(500).json({ message: "Server error" });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    const booking = results[0];
+
+    if (booking.booking_status === "Cancelled") {
+      return res.json({
+        overstayMinutes: 0,
+        extraCharge: 0,
+        message: "Booking already cancelled",
       });
     }
 
-    res.json({
-      message: "Booking cancelled and refund processed (Fake)",
+    const now = new Date();
+    const expiryTime = new Date(booking.expiry_time);
+
+    if (now <= expiryTime) {
+      return res.json({
+        overstayMinutes: 0,
+        extraCharge: 0,
+        message: "No extra charge",
+      });
+    }
+
+    const diffMs = now - expiryTime;
+    const overstayMinutes = Math.ceil(diffMs / (1000 * 60));
+    const extraCharge = Math.ceil(overstayMinutes / 15) * 10;
+
+    return res.json({
+      overstayMinutes,
+      extraCharge,
+      message: "Extra charge applicable",
     });
   });
 });
@@ -287,6 +401,7 @@ app.put("/expire-bookings", (req, res) => {
 
   db.query(sql, (err, result) => {
     if (err) {
+      console.log("Expire bookings error:", err);
       return res.status(500).json({ message: "Error expiring bookings" });
     }
 

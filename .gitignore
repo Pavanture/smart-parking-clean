@@ -1,7 +1,17 @@
+# Root
 node_modules
-dist
 .env
+
+# Backend
 backend/node_modules
 backend/.env
+
+# Frontend
 smart-parking-frontend/node_modules
+smart-parking-frontend/.env
 smart-parking-frontend/dist
+smart-parking-frontend/build
+
+# Common
+dist
+build
