@@ -127,7 +127,11 @@ function Payment() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || data.message || "Payment failed");
+        console.log("BOOK ERROR RESPONSE:", data);
+        setError(
+          data.message +
+            (data.missingFields ? `: ${data.missingFields.join(", ")}` : ""),
+        );
         return;
       }
 

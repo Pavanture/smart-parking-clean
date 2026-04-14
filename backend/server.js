@@ -190,17 +190,26 @@ app.post("/book", (req, res) => {
     start_time,
   } = req.body;
 
-  if (
-    !user_id ||
-    !location ||
-    !slot ||
-    !vehicle_type ||
-    !hours ||
-    !amount ||
-    !payment_mode
-  ) {
-    return res.status(400).json({ message: "Missing required booking fields" });
-  }
+  const missingFields = [];
+
+if (!user_id) missingFields.push("user_id");
+if (!location) missingFields.push("location");
+if (!slot) missingFields.push("slot");
+if (!vehicle_type) missingFields.push("vehicle_type");
+if (!hours) missingFields.push("hours");
+if (!amount) missingFields.push("amount");
+if (!payment_mode) missingFields.push("payment_mode");
+
+if (missingFields.length > 0) {
+  console.log("Missing fields:", missingFields);
+  console.log("Received booking body:", req.body);
+
+  return res.status(400).json({
+    message: "Missing required booking fields",
+    missingFields,
+    receivedData: req.body,
+  });
+}
 
   const checkSql = `
     SELECT * FROM bookings
