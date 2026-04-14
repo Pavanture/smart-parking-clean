@@ -1,30 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { BASE_URL } from "../config";
 
 function Payment() {
   const navigate = useNavigate();
-  const { state } = useLocation();
 
-  const pendingBooking = JSON.parse(
-    localStorage.getItem("pendingBooking") || "{}",
-  );
+  const pendingBookingRaw = localStorage.getItem("pendingBooking");
+  const pendingBooking = pendingBookingRaw
+    ? JSON.parse(pendingBookingRaw)
+    : null;
 
-  const spotName = state?.spotName || pendingBooking?.spotName || "";
-  const parkingType = state?.parkingType || pendingBooking?.parkingType || "";
-  const selectedSlots =
-    state?.selectedSlots ||
-    (Array.isArray(pendingBooking?.selectedSlots)
-      ? pendingBooking.selectedSlots
-      : []);
-  const hours = Number(state?.hours || pendingBooking?.hours || 0);
-  const hourlyRate = Number(
-    state?.hourlyRate || pendingBooking?.hourlyRate || 0,
-  );
-  const start_time =
-    state?.start_time || pendingBooking?.start_time || new Date().toISOString();
+  const spotName = pendingBooking?.spotName || "";
+  const parkingType = pendingBooking?.parkingType || "";
+  const selectedSlots = Array.isArray(pendingBooking?.selectedSlots)
+    ? pendingBooking.selectedSlots
+    : [];
+  const hours = Number(pendingBooking?.hours) || 0;
+  const hourlyRate = Number(pendingBooking?.hourlyRate) || 0;
+  const start_time = pendingBooking?.start_time || "";
 
-  const [method, setMethod] = useState("card");
+  const [method, setMethod] = useState("cash");
   const [cardNumber, setCardNumber] = useState("");
   const [cardName, setCardName] = useState("");
   const [expiry, setExpiry] = useState("");
@@ -39,24 +34,24 @@ function Payment() {
     return hourlyRate * hours;
   }, [hourlyRate, hours]);
 
-  useEffect(() => {
-    if (spotName && parkingType && selectedSlots.length > 0) {
-      const mergedBooking = {
-        spotName,
-        parkingType,
-        selectedSlots,
-        hours,
-        hourlyRate,
-        start_time,
-      };
-
-      localStorage.setItem("pendingBooking", JSON.stringify(mergedBooking));
-    }
-  }, [spotName, parkingType, selectedSlots, hours, hourlyRate, start_time]);
-
   const validate = () => {
-    if (!vehicleNumber.trim() || !phone.trim()) {
-      return "Please enter vehicle number and phone number";
+    if (
+      !spotName ||
+      !parkingType ||
+      selectedSlots.length === 0 ||
+      !hours ||
+      !hourlyRate ||
+      !start_time
+    ) {
+      return "Booking details missing. Please go back and select slot again.";
+    }
+
+    if (!vehicleNumber.trim()) {
+      return "Please enter vehicle number";
+    }
+
+    if (!phone.trim()) {
+      return "Please enter phone number";
     }
 
     if (phone.trim().length < 10) {
@@ -75,7 +70,7 @@ function Payment() {
     }
 
     if (method === "upi") {
-      if (!upiId.includes("@")) {
+      if (!upiId.trim() || !upiId.includes("@")) {
         return "Please enter a valid UPI ID";
       }
     }
@@ -100,36 +95,20 @@ function Payment() {
     }
 
     const payload = {
-      user_id: user?.id || "",
-      location: spotName || "",
-      slot: selectedSlots.length > 0 ? selectedSlots[0] : "",
+      user_id: user.id,
+      location: spotName,
+      slot: selectedSlots[0],
       vehicle_type: parkingType === "electric" ? "Electric" : "Normal",
       vehicle_number: vehicleNumber.trim(),
       phone: phone.trim(),
-      hours: Number(hours) || 0,
-      amount: Number(bookingTotal) || 0,
-      payment_mode: method ? method.toUpperCase() : "",
-      start_time: start_time,
+      hours: Number(hours),
+      amount: Number(bookingTotal),
+      payment_mode: method.toUpperCase(),
+      start_time,
     };
 
-    console.log("PAYMENT STATE:", state);
     console.log("PENDING BOOKING:", pendingBooking);
     console.log("FINAL PAYLOAD:", payload);
-
-    if (
-      !payload.user_id ||
-      !payload.location ||
-      !payload.slot ||
-      !payload.vehicle_type ||
-      !payload.hours ||
-      !payload.amount ||
-      !payload.payment_mode
-    ) {
-      setError(
-        "Booking details missing. Please go back and select slot again.",
-      );
-      return;
-    }
 
     setLoading(true);
     setError("");
@@ -172,8 +151,8 @@ function Payment() {
 
         <p className="text-sm text-gray-500 mb-6">
           Booking for <strong>{spotName || "N/A"}</strong> (
-          {parkingType || "N/A"}) • Slot:{" "}
-          {selectedSlots.length > 0 ? selectedSlots[0] : "N/A"} • {hours} hr
+          {parkingType || "N/A"}) • Slot: {selectedSlots[0] || "N/A"} •{" "}
+          {hours || 0} hr
         </p>
 
         <div className="space-y-4 mb-6">
