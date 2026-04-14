@@ -1,20 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { BASE_URL } from "../config";
 
 function Payment() {
   const navigate = useNavigate();
+  const { state } = useLocation();
 
   const pendingBooking = JSON.parse(
     localStorage.getItem("pendingBooking") || "{}",
   );
 
-  const spotName = pendingBooking?.spotName || "";
-  const parkingType = pendingBooking?.parkingType || "";
-  const selectedSlots = pendingBooking?.selectedSlots || [];
-  const hours = Number(pendingBooking?.hours) || 1;
-  const hourlyRate = Number(pendingBooking?.hourlyRate) || 0;
-  const start_time = pendingBooking?.start_time || new Date().toISOString();
+  const spotName = state?.spotName || pendingBooking?.spotName || "";
+  const parkingType = state?.parkingType || pendingBooking?.parkingType || "";
+  const selectedSlots =
+    state?.selectedSlots ||
+    (Array.isArray(pendingBooking?.selectedSlots)
+      ? pendingBooking.selectedSlots
+      : []);
+  const hours = Number(state?.hours || pendingBooking?.hours || 0);
+  const hourlyRate = Number(
+    state?.hourlyRate || pendingBooking?.hourlyRate || 0,
+  );
+  const start_time =
+    state?.start_time || pendingBooking?.start_time || new Date().toISOString();
 
   const [method, setMethod] = useState("card");
   const [cardNumber, setCardNumber] = useState("");
@@ -32,12 +40,19 @@ function Payment() {
   }, [hourlyRate, hours]);
 
   useEffect(() => {
-    if (!spotName || !parkingType || selectedSlots.length === 0) {
-      setError(
-        "Booking details missing. Please go back and select slot again.",
-      );
+    if (spotName && parkingType && selectedSlots.length > 0) {
+      const mergedBooking = {
+        spotName,
+        parkingType,
+        selectedSlots,
+        hours,
+        hourlyRate,
+        start_time,
+      };
+
+      localStorage.setItem("pendingBooking", JSON.stringify(mergedBooking));
     }
-  }, [spotName, parkingType, selectedSlots]);
+  }, [spotName, parkingType, selectedSlots, hours, hourlyRate, start_time]);
 
   const validate = () => {
     if (!vehicleNumber.trim() || !phone.trim()) {
@@ -49,7 +64,12 @@ function Payment() {
     }
 
     if (method === "card") {
-      if (!cardNumber || !cardName || !expiry || !cvv) {
+      if (
+        !cardNumber.trim() ||
+        !cardName.trim() ||
+        !expiry.trim() ||
+        !cvv.trim()
+      ) {
         return "Please fill payment details";
       }
     }
@@ -65,12 +85,14 @@ function Payment() {
 
   const makePayment = async () => {
     const validationError = validate();
+
     if (validationError) {
       setError(validationError);
       return;
     }
 
     const user = JSON.parse(localStorage.getItem("user"));
+
     if (!user) {
       alert("Please login first");
       navigate("/login");
@@ -87,8 +109,12 @@ function Payment() {
       hours: Number(hours) || 0,
       amount: Number(bookingTotal) || 0,
       payment_mode: method ? method.toUpperCase() : "",
-      start_time: start_time || new Date().toISOString(),
+      start_time: start_time,
     };
+
+    console.log("PAYMENT STATE:", state);
+    console.log("PENDING BOOKING:", pendingBooking);
+    console.log("FINAL PAYLOAD:", payload);
 
     if (
       !payload.user_id ||
@@ -118,6 +144,7 @@ function Payment() {
       });
 
       const data = await res.json();
+      console.log("BOOK RESPONSE:", data);
 
       if (!res.ok) {
         setError(

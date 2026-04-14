@@ -111,8 +111,13 @@ function Booking() {
       start_time: `${bookingDate}T${startHour}:00`,
     };
 
+    console.log("BOOKING DATA:", bookingData);
+
     localStorage.setItem("pendingBooking", JSON.stringify(bookingData));
-    navigate("/payment");
+
+    navigate("/payment", {
+      state: bookingData,
+    });
   };
 
   if (!selectedLocation) {
