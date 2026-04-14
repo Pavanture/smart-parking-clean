@@ -19,6 +19,8 @@ function Payment() {
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
   const [upiId, setUpiId] = useState("");
+  const [vehicleNumber, setVehicleNumber] = useState("");
+  const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -33,18 +35,34 @@ function Payment() {
   }, [navigate, parkingType, selectedSlots, spotName]);
 
   const validate = () => {
+    if (!vehicleNumber.trim() || !phone.trim()) {
+      return "Please enter vehicle number and phone number";
+    }
+
+    if (phone.trim().length < 10) {
+      return "Please enter a valid phone number";
+    }
+
     if (method === "card") {
-      return cardNumber && cardName && expiry && cvv;
+      if (!cardNumber || !cardName || !expiry || !cvv) {
+        return "Please fill payment details";
+      }
     }
+
     if (method === "upi") {
-      return upiId.includes("@");
+      if (!upiId.includes("@")) {
+        return "Please enter a valid UPI ID";
+      }
     }
-    return true;
+
+    return "";
   };
 
   const makePayment = async () => {
-    if (!validate()) {
-      setError("Please fill payment details");
+    const validationError = validate();
+
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -65,8 +83,8 @@ function Payment() {
         location: spotName,
         slot: selectedSlots[0],
         vehicle_type: parkingType === "electric" ? "Electric" : "Normal",
-        vehicle_number: "MH12AB1234",
-        phone: "9999999999",
+        vehicle_number: vehicleNumber,
+        phone: phone,
         hours: hours,
         amount: bookingTotal,
         payment_mode: method.toUpperCase(),
@@ -102,7 +120,7 @@ function Payment() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-blue-200 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-blue-200 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl p-10 w-full max-w-lg">
         <h2 className="text-2xl font-bold mb-2">Payment</h2>
 
@@ -112,6 +130,20 @@ function Payment() {
         </p>
 
         <div className="space-y-4 mb-6">
+          <input
+            placeholder="Vehicle Number"
+            value={vehicleNumber}
+            onChange={(e) => setVehicleNumber(e.target.value.toUpperCase())}
+            className="w-full p-3 border rounded-lg"
+          />
+
+          <input
+            placeholder="Phone Number"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="w-full p-3 border rounded-lg"
+          />
+
           <div className="flex gap-3">
             <label>
               <input
