@@ -30,7 +30,7 @@ app.post("/signup", (req, res) => {
   const sql =
     "INSERT INTO users (name, email, password, phone) VALUES (?, ?, ?, ?)";
 
-  db.query(sql, [name, email, password, phone], (err, result) => {
+  db.query(sql, [name, email, password, phone], (err) => {
     if (err) {
       console.log("Signup error:", err);
       return res.status(500).json({ message: "Database Error" });
@@ -99,7 +99,7 @@ app.get("/admin/dashboard", (req, res) => {
   });
 });
 
-/* ---------------- USER BOOKING HISTORY ---------------- */
+/* ---------------- USER BOOKINGS ---------------- */
 
 app.get("/my-bookings/:userId", (req, res) => {
   const userId = req.params.userId;
@@ -175,8 +175,6 @@ app.get("/available-slots/:location/:vehicleType", (req, res) => {
 /* ---------------- BOOK SLOT ---------------- */
 
 app.post("/book", (req, res) => {
-  console.log("BOOK REQ BODY:", req.body);
-
   const {
     user_id,
     location,
@@ -192,24 +190,24 @@ app.post("/book", (req, res) => {
 
   const missingFields = [];
 
-if (!user_id) missingFields.push("user_id");
-if (!location) missingFields.push("location");
-if (!slot) missingFields.push("slot");
-if (!vehicle_type) missingFields.push("vehicle_type");
-if (!hours) missingFields.push("hours");
-if (!amount) missingFields.push("amount");
-if (!payment_mode) missingFields.push("payment_mode");
+  if (!user_id) missingFields.push("user_id");
+  if (!location) missingFields.push("location");
+  if (!slot) missingFields.push("slot");
+  if (!vehicle_type) missingFields.push("vehicle_type");
+  if (!hours) missingFields.push("hours");
+  if (!amount) missingFields.push("amount");
+  if (!payment_mode) missingFields.push("payment_mode");
 
-if (missingFields.length > 0) {
-  console.log("Missing fields:", missingFields);
-  console.log("Received booking body:", req.body);
+  if (missingFields.length > 0) {
+    console.log("Missing fields:", missingFields);
+    console.log("Received booking body:", req.body);
 
-  return res.status(400).json({
-    message: "Missing required booking fields",
-    missingFields,
-    receivedData: req.body,
-  });
-}
+    return res.status(400).json({
+      message: "Missing required booking fields",
+      missingFields,
+      receivedData: req.body,
+    });
+  }
 
   const checkSql = `
     SELECT * FROM bookings
@@ -224,7 +222,6 @@ if (missingFields.length > 0) {
       console.log("Book slot check error:", err);
       return res.status(500).json({
         message: "Server error while checking slot",
-        error: err.message,
       });
     }
 
@@ -279,8 +276,8 @@ if (missingFields.length > 0) {
         location,
         slot,
         vehicle_type,
-        vehicle_number || "MH12AB1234",
-        phone || "9999999999",
+        vehicle_number || "",
+        phone || "",
         Number(hours),
         Number(amount),
         payment_mode,
@@ -291,7 +288,7 @@ if (missingFields.length > 0) {
       ],
       (err, result) => {
         if (err) {
-          console.log("Booking insert error full:", err);
+          console.log("Booking insert error:", err);
           return res.status(500).json({
             message: "Booking failed",
             error: err.message,
@@ -314,10 +311,7 @@ if (missingFields.length > 0) {
 app.delete("/cancel-booking/:id", (req, res) => {
   const bookingId = req.params.id;
 
-  const checkSql = `
-    SELECT * FROM bookings
-    WHERE id = ?
-  `;
+  const checkSql = `SELECT * FROM bookings WHERE id = ?`;
 
   db.query(checkSql, [bookingId], (err, results) => {
     if (err) {
@@ -347,7 +341,7 @@ app.delete("/cancel-booking/:id", (req, res) => {
       WHERE id = ?
     `;
 
-    db.query(updateSql, [bookingId], (err, result) => {
+    db.query(updateSql, [bookingId], (err) => {
       if (err) {
         console.log("Cancel booking error:", err);
         return res.status(500).json({ message: "Cancel failed" });
@@ -437,7 +431,7 @@ app.put("/expire-bookings", (req, res) => {
   });
 });
 
-/* ---------------- AUTO EXPIRE EVERY 1 MIN ---------------- */
+/* ---------------- AUTO EXPIRE ---------------- */
 
 setInterval(() => {
   const sql = `
@@ -447,7 +441,7 @@ setInterval(() => {
     AND booking_status = 'Active'
   `;
 
-  db.query(sql, (err, result) => {
+  db.query(sql, (err) => {
     if (err) {
       console.log("Auto expire error:", err);
     }

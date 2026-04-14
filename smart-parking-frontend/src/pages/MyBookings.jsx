@@ -63,7 +63,6 @@ function MyBookings() {
     const confirmCancel = window.confirm(
       "Are you sure you want to cancel this booking?",
     );
-
     if (!confirmCancel) return;
 
     try {
@@ -75,7 +74,6 @@ function MyBookings() {
 
       if (res.ok) {
         alert(data.message || "Booking cancelled successfully");
-
         setBookings((prev) =>
           prev.map((booking) =>
             booking.id === bookingId
@@ -83,7 +81,6 @@ function MyBookings() {
               : booking,
           ),
         );
-
         setExtraCharges((prev) => ({
           ...prev,
           [bookingId]: 0,
@@ -101,7 +98,6 @@ function MyBookings() {
     const status = booking.status || booking.booking_status || "Booked";
 
     if (status === "Cancelled") return false;
-
     if (!booking.expiry_time) return true;
 
     return new Date(booking.expiry_time) > new Date();
@@ -154,40 +150,32 @@ function MyBookings() {
                 <p>
                   <strong>Parking Type:</strong> {booking.vehicle_type}
                 </p>
-
                 <p>
                   <strong>Slot:</strong> {booking.slot}
                 </p>
-
                 <p>
                   <strong>Vehicle Number:</strong>{" "}
                   {booking.vehicle_number || "N/A"}
                 </p>
-
                 <p>
                   <strong>Phone Number:</strong> {booking.phone || "N/A"}
                 </p>
-
                 <p>
                   <strong>Hours:</strong> {booking.hours}
                 </p>
-
                 <p>
                   <strong>Total Amount:</strong> ₹{booking.amount}
                 </p>
-
                 <p>
                   <strong>Status:</strong>{" "}
                   {booking.status || booking.booking_status || "Booked"}
                 </p>
-
                 <p>
                   <strong>Start Time:</strong>{" "}
                   {booking.start_time
                     ? new Date(booking.start_time).toLocaleString()
                     : "N/A"}
                 </p>
-
                 <p>
                   <strong>Expiry Time:</strong>{" "}
                   {booking.expiry_time
@@ -206,12 +194,14 @@ function MyBookings() {
                 )}
 
                 <div className="mt-4 flex gap-3 flex-wrap">
-                  <button
-                    onClick={() => cancelBooking(booking.id)}
-                    className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"
-                  >
-                    Cancel Booking
-                  </button>
+                  {booking.status !== "Cancelled" && (
+                    <button
+                      onClick={() => cancelBooking(booking.id)}
+                      className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"
+                    >
+                      Cancel Booking
+                    </button>
+                  )}
 
                   <button
                     onClick={() => navigate("/history")}

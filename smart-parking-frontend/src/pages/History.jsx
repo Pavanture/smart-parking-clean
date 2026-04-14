@@ -37,14 +37,10 @@ function History() {
     }
   };
 
-  // 🔥 History filter (IMPORTANT)
   const historyBookings = bookings.filter((booking) => {
     const status = booking.status || booking.booking_status || "Booked";
 
-    // Cancelled bookings → history
     if (status === "Cancelled") return true;
-
-    // Expired bookings → history
     if (booking.expiry_time) {
       return new Date(booking.expiry_time) <= new Date();
     }
@@ -90,40 +86,32 @@ function History() {
                 <p>
                   <strong>Parking Type:</strong> {booking.vehicle_type}
                 </p>
-
                 <p>
                   <strong>Slot:</strong> {booking.slot}
                 </p>
-
                 <p>
                   <strong>Vehicle Number:</strong>{" "}
                   {booking.vehicle_number || "N/A"}
                 </p>
-
                 <p>
                   <strong>Phone Number:</strong> {booking.phone || "N/A"}
                 </p>
-
                 <p>
                   <strong>Hours:</strong> {booking.hours}
                 </p>
-
                 <p>
                   <strong>Total Amount:</strong> ₹{booking.amount}
                 </p>
-
                 <p>
                   <strong>Status:</strong>{" "}
                   {booking.status || booking.booking_status}
                 </p>
-
                 <p>
                   <strong>Start Time:</strong>{" "}
                   {booking.start_time
                     ? new Date(booking.start_time).toLocaleString()
                     : "N/A"}
                 </p>
-
                 <p>
                   <strong>Expiry Time:</strong>{" "}
                   {booking.expiry_time

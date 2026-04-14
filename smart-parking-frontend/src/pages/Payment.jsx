@@ -49,12 +49,7 @@ function Payment() {
     }
 
     if (method === "card") {
-      if (
-        !cardNumber.trim() ||
-        !cardName.trim() ||
-        !expiry.trim() ||
-        !cvv.trim()
-      ) {
+      if (!cardNumber || !cardName || !expiry || !cvv) {
         return "Please fill payment details";
       }
     }
@@ -70,14 +65,12 @@ function Payment() {
 
   const makePayment = async () => {
     const validationError = validate();
-
     if (validationError) {
       setError(validationError);
       return;
     }
 
     const user = JSON.parse(localStorage.getItem("user"));
-
     if (!user) {
       alert("Please login first");
       navigate("/login");
@@ -127,7 +120,6 @@ function Payment() {
       const data = await res.json();
 
       if (!res.ok) {
-        console.log("BOOK ERROR RESPONSE:", data);
         setError(
           data.message +
             (data.missingFields ? `: ${data.missingFields.join(", ")}` : ""),
