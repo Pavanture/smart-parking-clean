@@ -11,7 +11,7 @@ app.use(
   cors({
     origin: allowedOrigin,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  }),
+  })
 );
 
 app.use(express.json());
@@ -160,7 +160,9 @@ app.get("/available-slots/:location/:vehicleType", (req, res) => {
     }
 
     const bookedSlots = results.map((r) => r.slot);
-    const availableSlots = allSlots.filter((slot) => !bookedSlots.includes(slot));
+    const availableSlots = allSlots.filter(
+      (slot) => !bookedSlots.includes(slot)
+    );
 
     res.json({
       location,
@@ -168,6 +170,41 @@ app.get("/available-slots/:location/:vehicleType", (req, res) => {
       totalSlots: allSlots.length,
       bookedSlots,
       availableSlots,
+    });
+  });
+});
+
+/* ---------------- HARDWARE API FOR LCD ---------------- */
+
+app.get("/api/hardware/slots/:location", (req, res) => {
+  const location = req.params.location;
+
+  const allSlots = ["N1", "N2", "E1"];
+
+  const sql = `
+    SELECT slot FROM bookings
+    WHERE location = ?
+    AND booking_status = 'Active'
+    AND expiry_time > NOW()
+  `;
+
+  db.query(sql, [location], (err, results) => {
+    if (err) {
+      console.log("Hardware API error:", err);
+      return res.status(500).json({ message: "Server error" });
+    }
+
+    const bookedSlots = results.map((r) => r.slot);
+
+    const slots = allSlots.map((slot) => ({
+      slot,
+      status: bookedSlots.includes(slot) ? "BOOKED" : "AVAILABLE",
+    }));
+
+    res.json({
+      location,
+      totalSlots: allSlots.length,
+      slots,
     });
   });
 });
@@ -236,7 +273,7 @@ app.post("/book", (req, res) => {
     }
 
     const expiryDateObj = new Date(
-      startDateObj.getTime() + Number(hours) * 60 * 60 * 1000,
+      startDateObj.getTime() + Number(hours) * 60 * 60 * 1000
     );
 
     const formattedStartTime = startDateObj
@@ -295,13 +332,15 @@ app.post("/book", (req, res) => {
           });
         }
 
+        console.log(`SLOT BOOKED → ${location} - ${slot}`);
+
         return res.json({
           message: "Booking successful",
           bookingId: result.insertId,
           start_time: formattedStartTime,
           expiry_time: formattedExpiryTime,
         });
-      },
+      }
     );
   });
 });
@@ -346,6 +385,8 @@ app.delete("/cancel-booking/:id", (req, res) => {
         console.log("Cancel booking error:", err);
         return res.status(500).json({ message: "Cancel failed" });
       }
+
+      console.log(`SLOT FREED → ${booking.location} - ${booking.slot}`);
 
       return res.json({
         message: "Booking cancelled successfully",
