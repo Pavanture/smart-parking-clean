@@ -192,14 +192,11 @@ app.get("/api/hardware/slots/:location", async (req, res) => {
     const booked = rows.map(r => r.slot_name);
 
     const result = allSlots.map(slot => ({
-      slot: slot,
+      slot,
       status: booked.includes(slot) ? "BOOKED" : "AVAILABLE"
     }));
 
-    res.json({
-      location: location,
-      slots: result
-    });
+    res.json({ location, slots: result });
 
   } catch (err) {
     console.log("Hardware API Error:", err);
