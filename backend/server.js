@@ -175,40 +175,37 @@ app.get("/available-slots/:location/:vehicleType", (req, res) => {
 });
 
 /* ---------------- HARDWARE API FOR LCD ---------------- */
-
-app.get("/api/hardware/slots/:location", (req, res) => {
+app.get("/api/hardware/slots/:location", async (req, res) => {
   const location = req.params.location;
 
-  const allSlots = ["N1", "N2", "E1"];
+  try {
+    const allSlots = ["N1", "N2", "E1"];
 
-  const sql = `
-    SELECT slot FROM bookings
-    WHERE location = ?
-    AND booking_status = 'Active'
-    AND expiry_time > NOW()
-  `;
+    const [rows] = await db.query(
+      `SELECT slot_name 
+       FROM bookings 
+       WHERE location = ? 
+       AND booking_status = 'Active'`,
+      [location]
+    );
 
-  db.query(sql, [location], (err, results) => {
-    if (err) {
-      console.log("Hardware API error:", err);
-      return res.status(500).json({ message: "Server error" });
-    }
+    const booked = rows.map(r => r.slot_name);
 
-    const bookedSlots = results.map((r) => r.slot);
-
-    const slots = allSlots.map((slot) => ({
-      slot,
-      status: bookedSlots.includes(slot) ? "BOOKED" : "AVAILABLE",
+    const result = allSlots.map(slot => ({
+      slot: slot,
+      status: booked.includes(slot) ? "BOOKED" : "AVAILABLE"
     }));
 
     res.json({
-      location,
-      totalSlots: allSlots.length,
-      slots,
+      location: location,
+      slots: result
     });
-  });
-});
 
+  } catch (err) {
+    console.log("Hardware API Error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
 /* ---------------- BOOK SLOT ---------------- */
 
 app.post("/book", (req, res) => {
